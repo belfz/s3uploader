@@ -1,4 +1,6 @@
+const fs = require("fs");
 const util = require("util");
+const path = require("path");
 const AWS = require("aws-sdk");
 const commandLineArgs = require("command-line-args");
 const commandLineUsage = require("command-line-usage");
@@ -44,6 +46,34 @@ const createBucket = (s3, bucketName, location) => {
   });
 };
 
+const uploadSimple = (s3, bucketName, filePath) => {
+  const fileName = path.basename(filePath);
+  const fileStream = fs.createReadStream(filePath);
+
+  return new Promise((resolve, reject) => {
+    fileStream.once("error", reject);
+
+    const params = {
+      Bucket: bucketName,
+      Key: fileName,
+      Body: fileStream
+    };
+
+    util.promisify(s3.upload.bind(s3))(params)
+      .then(resolve)
+      .catch(err => {
+        const { code, message } = err;
+  
+        switch (code) {
+          // TODO handle known errors
+          default:
+            reject(new S3UploaderError(message));
+            break;
+        }
+      });
+  });
+};
+
 const logic = async (options) => {
   const s3 = new AWS.S3({
     accessKeyId,
@@ -58,6 +88,7 @@ const logic = async (options) => {
     await createBucket(s3, name, region);
     const files = getListOfFiles(src);
     console.log("about to upload", files);
+    await Promise.all(files.map(filePath => uploadSimple(s3, name, filePath)));
     return 0;
   } catch (err) {
     console.log(`error: ${err.message}`);
