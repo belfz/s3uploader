@@ -1,14 +1,17 @@
 const util = require("util");
 const AWS = require("aws-sdk");
 const commandLineArgs = require("command-line-args");
+const commandLineUsage = require("command-line-usage");
 const S3UploaderError = require("./S3UploadError");
 const { accessKeyId, secretAccessKey } = require("./.awskey");
+
+const DEFAULT_AWS_REGION = "eu-central-1";
 
 const getBucketName = (options) => {
   if (options.bucketName) {
     return options.bucketName;
   }
-  
+
   throw new S3UploaderError("missing '--bucketName' (or '-b') CLI parameter!");
 };
 
@@ -55,8 +58,45 @@ const logic = async (options) => {
 const main = async () => {
   const options = commandLineArgs([
     { name: "bucketName", alias: "b", type: String },
-    { name: "region", alias: "r", type: String, defaultValue: "eu-central-1" }
+    { name: "region", alias: "r", type: String, defaultValue: DEFAULT_AWS_REGION },
+    { name: "help", alias: "h", type: Boolean }
   ]);
+  // TODO list of files
+
+  const usage = commandLineUsage([
+    {
+      header: "s3uploader",
+      content: "A script to create an S3 Bucket (of given name) and upload selected files."
+    },
+    {
+      header: "Options",
+      optionList: [
+        {
+          name: "bucketName",
+          alias: "b",
+          typeLabel: "{underline string}",
+          description: "The name of the bucket to create (or to use existing one). Required."
+        },
+        {
+          name: "region",
+          alias: "r",
+          typeLabel: "{underline string}",
+          description: `The name of the AWS region. Not required, default to ${DEFAULT_AWS_REGION}.`,
+        }
+      ]
+    },
+    {
+      header: "Synopsis",
+      content: `$ s3uploader -b my-new-bucket file1 file2 ...
+      $ s3uploader -b my-new-bucket -r eu-west-1 file1 ...
+      `
+    }
+  ]);
+
+  if (options.help) {
+    console.log(usage);
+    process.exit(0);
+  }
 
   const exitCode = await logic(options);
   process.exit(exitCode);
