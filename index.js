@@ -4,6 +4,7 @@ const path = require("path");
 const AWS = require("aws-sdk");
 const commandLineArgs = require("command-line-args");
 const commandLineUsage = require("command-line-usage");
+const logUpdate = require("log-update");
 const S3UploaderError = require("./S3UploadError");
 const { accessKeyId, secretAccessKey } = require("./.awskey");
 
@@ -59,9 +60,8 @@ const uploadSimple = (s3, bucketName, filePath) => {
       Body: fileStream
     };
 
-    util.promisify(s3.upload.bind(s3))(params)
-      .then(resolve)
-      .catch(err => {
+    const managedUpload = s3.upload(params, (err, data) => {
+      if (err) {
         const { code, message } = err;
   
         switch (code) {
@@ -70,7 +70,18 @@ const uploadSimple = (s3, bucketName, filePath) => {
             reject(new S3UploaderError(message));
             break;
         }
-      });
+      }
+
+      resolve();
+    });
+
+    managedUpload.on("httpUploadProgress", ev => {
+      const { loaded, total } = ev;
+      logUpdate(`uploading ${filePath}: ${(loaded / total * 100).toFixed(2)}%`);
+      if (loaded === total) {
+        logUpdate.done();
+      }
+    });
   });
 };
 
@@ -80,15 +91,23 @@ const logic = async (options) => {
     secretAccessKey
   });
 
-  const { bucketName, region, src } = options;
+  const { bucket, parallel, region, src } = options;
 
   try {
-    const name = getBucketName(bucketName);
+    const name = getBucketName(bucket);
     console.log("attempting to create a bucket...");
     await createBucket(s3, name, region);
     const files = getListOfFiles(src);
     console.log("about to upload", files);
-    await Promise.all(files.map(filePath => uploadSimple(s3, name, filePath)));
+    if (parallel) {
+      console.log("WARNING! Parallel upload enabled.")
+      await Promise.all(files.map(filePath => uploadSimple(s3, name, filePath)));
+    } else {
+      for (filePath of files) {
+        await uploadSimple(s3, name, filePath);
+      }
+    }
+    console.log("done, all files uploaded!");
     return 0;
   } catch (err) {
     console.log(`error: ${err.message}`);
@@ -98,8 +117,9 @@ const logic = async (options) => {
 
 const main = async () => {
   const options = commandLineArgs([
-    { name: "bucketName", alias: "b", type: String },
+    { name: "bucket", alias: "b", type: String },
     { name: "region", alias: "r", type: String, defaultValue: DEFAULT_AWS_REGION },
+    { name: "parallel", alias: "p", type: Boolean, defaultValue: false },
     { name: "src", type: String, multiple: true, defaultOption: true },
     { name: "help", alias: "h", type: Boolean }
   ]);
@@ -113,10 +133,16 @@ const main = async () => {
       header: "Options",
       optionList: [
         {
-          name: "bucketName",
+          name: "bucket",
           alias: "b",
           typeLabel: "{underline string}",
           description: "The name of the bucket to create (or to use existing one). Required."
+        },
+        {
+          name: "parallel",
+          alias: "p",
+          typeLabel: "{underline (flag - on or off)}",
+          description: "Whether to parallelize file upload. Defaults to false (sequential upload)."
         },
         {
           name: "region",
