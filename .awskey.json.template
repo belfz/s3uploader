@@ -1,0 +1,6 @@
+-- this is a template file for .awskey.json that is required to run the s3uploader
+
+{
+  "accessKeyId": "<YOUR_AWS_ACCESS_KEY_ID>",
+  "secretAccessKey": "<YOUR_AWS_SECRET_ACCESS_KEY>"
+}

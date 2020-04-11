@@ -19,6 +19,7 @@ You will need to put a `.awskey.json` file (in the same directory as `cli.js`) w
   "secretAccessKey": "<YOUR_AWS_SECRET_ACCESS_KEY>"
 }
 ```
+See also `.awskey.json.template` file.
 
 This file is by deafult ignored by git.
 
