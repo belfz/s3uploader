@@ -7,12 +7,20 @@ const { accessKeyId, secretAccessKey } = require("./.awskey");
 
 const DEFAULT_AWS_REGION = "eu-central-1";
 
-const getBucketName = (options) => {
-  if (options.bucketName) {
-    return options.bucketName;
+const getBucketName = (bucketName) => {
+  if (bucketName) {
+    return bucketName;
   }
 
   throw new S3UploaderError("missing '--bucketName' (or '-b') CLI parameter!");
+};
+
+const getListOfFiles = (src) => {
+  if (Array.isArray(src) && src.length > 0) {
+    return src;
+  }
+
+  throw new S3UploaderError("you must specify files you want to upload!");
 };
 
 const createBucket = (s3, bucketName, location) => {
@@ -42,12 +50,14 @@ const logic = async (options) => {
     secretAccessKey
   });
 
+  const { bucketName, region, src } = options;
+
   try {
-    const bucketName = getBucketName(options);
-    const region = options.region;
+    const name = getBucketName(bucketName);
     console.log("attempting to create a bucket...");
-    await createBucket(s3, bucketName, region);
-    console.log("got the bucket");
+    await createBucket(s3, name, region);
+    const files = getListOfFiles(src);
+    console.log("about to upload", files);
     return 0;
   } catch (err) {
     console.log(`error: ${err.message}`);
@@ -59,9 +69,9 @@ const main = async () => {
   const options = commandLineArgs([
     { name: "bucketName", alias: "b", type: String },
     { name: "region", alias: "r", type: String, defaultValue: DEFAULT_AWS_REGION },
+    { name: "src", type: String, multiple: true, defaultOption: true },
     { name: "help", alias: "h", type: Boolean }
   ]);
-  // TODO list of files
 
   const usage = commandLineUsage([
     {
