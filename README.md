@@ -1,6 +1,6 @@
 # s3uploader
 
-A simple tool to create an S3 bucket (or use an existing one, resolved by name) and upload files.
+A simple tool to create an S3 bucket on the fly (or use an existing one, resolved by name) and upload files.
 
 ## Installation
 

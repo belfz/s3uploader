@@ -7,12 +7,12 @@ const AWS = require("aws-sdk");
 const commandLineArgs = require("command-line-args");
 const commandLineUsage = require("command-line-usage");
 const logUpdate = require("log-update");
-const S3UploaderError = require("./S3UploadError");
+const commandLineOptions = require("./src/commandLineOptions");
+const commandLineInstructions = require("./src/commandLineInstructions");
+const S3UploaderError = require("./src/S3UploadError");
 const { accessKeyId, secretAccessKey } = require("./.awskey");
 
-const DEFAULT_AWS_REGION = "eu-central-1";
-
-const getBucketName = (bucketName) => {
+const getBucketName = bucketName => {
   if (bucketName) {
     return bucketName;
   }
@@ -62,16 +62,11 @@ const uploadSimple = (s3, bucketName, filePath) => {
       Body: fileStream
     };
 
-    const managedUpload = s3.upload(params, (err, data) => {
+    const managedUpload = s3.upload(params, err => {
       if (err) {
         const { code, message } = err;
   
-        switch (code) {
-          // TODO handle known errors
-          default:
-            reject(new S3UploaderError(message));
-            break;
-        }
+        reject(new S3UploaderError(message));
       }
 
       resolve();
@@ -118,49 +113,9 @@ const logic = async (options) => {
 };
 
 const main = async () => {
-  const options = commandLineArgs([
-    { name: "bucket", alias: "b", type: String },
-    { name: "region", alias: "r", type: String, defaultValue: DEFAULT_AWS_REGION },
-    { name: "parallel", alias: "p", type: Boolean, defaultValue: false },
-    { name: "src", type: String, multiple: true, defaultOption: true },
-    { name: "help", alias: "h", type: Boolean }
-  ]);
+  const options = commandLineArgs(commandLineOptions);
 
-  const usage = commandLineUsage([
-    {
-      header: "s3uploader",
-      content: "A script to create an S3 Bucket (of given name) and upload selected files."
-    },
-    {
-      header: "Options",
-      optionList: [
-        {
-          name: "bucket",
-          alias: "b",
-          typeLabel: "{underline string}",
-          description: "The name of the bucket to create (or to use existing one). Required."
-        },
-        {
-          name: "parallel",
-          alias: "p",
-          typeLabel: "{underline (flag - on or off)}",
-          description: "Whether to parallelize file upload. Defaults to false (sequential upload)."
-        },
-        {
-          name: "region",
-          alias: "r",
-          typeLabel: "{underline string}",
-          description: `The name of the AWS region. Not required, default to ${DEFAULT_AWS_REGION}.`,
-        }
-      ]
-    },
-    {
-      header: "Synopsis",
-      content: `$ s3uploader -b my-new-bucket file1 file2 ...
-      $ s3uploader -b my-new-bucket -r eu-west-1 file1 ...
-      `
-    }
-  ]);
+  const usage = commandLineUsage(commandLineInstructions);
 
   if (options.help) {
     console.log(usage);
