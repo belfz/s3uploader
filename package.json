@@ -2,7 +2,7 @@
   "name": "s3-upload",
   "version": "1.0.0",
   "description": "create s3 bucket and upload files",
-  "main": "index.js",
+  "main": "cli.js",
   "license": "MIT",
   "dependencies": {
     "aws-sdk": "^2.656.0",
